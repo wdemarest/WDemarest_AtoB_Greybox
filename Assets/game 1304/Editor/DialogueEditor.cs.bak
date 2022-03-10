@@ -1,0 +1,347 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEditor;
+using UnityEditor.Callbacks;
+using System;
+
+public enum LinkMode { link,unlink,cancel,child};
+
+public class DialogueEditor : EditorWindow
+{
+    DialogueScriptableObject currentDialogue;
+    GUIStyle dialogueNodeStyle;
+    GUIStyle logicNodeStyle;
+
+    //GUI stuff
+    [NonSerialized]
+    bool isDragging = false;
+    DialogueNode GUIselectedNode;
+    Vector2 scrollPosition;
+    Vector2 mouseOffset = Vector2.zero;
+    [NonSerialized]
+    bool isDraggingScreen = false;
+    Vector2 drawAreaOffset = Vector2.zero;
+    Vector2 screenDragStart = Vector2.zero;
+    [NonSerialized]
+    DialogueNode creatingNode = null;
+    [NonSerialized]
+    DialogueNode deletingNode = null;
+    [NonSerialized]
+    DialogueNode linkingNode = null;
+
+    const float canvasSize = 4000f;
+    const float backgroundSize = 64f;
+
+    [MenuItem("Window/GAME 1304/Dialogue Editor")]
+    public static void ShowEditorWindow()
+    {
+        GetWindow(typeof(DialogueEditor), false, "Dialogue Editor");
+    }
+
+    
+
+    [OnOpenAsset(1)]
+    public static bool OpenDialogueAsset(int instID, int lineNum)
+    {
+        DialogueScriptableObject dialogue;
+        dialogue = EditorUtility.InstanceIDToObject(instID) as DialogueScriptableObject;
+        if (dialogue != null)
+        {            
+            ShowEditorWindow();
+            return true;
+        }
+        return false;
+    }
+
+    private void OnEnable()
+    {
+        Selection.selectionChanged += OnSelectionChanged;
+        dialogueNodeStyle = new GUIStyle();
+        dialogueNodeStyle.normal.background = EditorGUIUtility.Load("node0") as Texture2D;
+        dialogueNodeStyle.normal.textColor = Color.white;
+        dialogueNodeStyle.padding = new RectOffset(20, 20, 20, 20);
+        dialogueNodeStyle.border = new RectOffset(12, 12, 12, 12);
+    }
+
+    private void OnSelectionChanged()
+    {
+        DialogueScriptableObject dialogue;
+        dialogue =Selection.activeObject as DialogueScriptableObject;
+        if(dialogue != null)
+        {
+            currentDialogue = dialogue;
+            Repaint();
+        }
+    }
+
+    private void OnGUI()
+    {
+        if (currentDialogue != null)
+        {
+            ProcessEvents();
+
+            scrollPosition = GUILayout.BeginScrollView(scrollPosition, true, true); // GUILayout.Width(500),GUILayout.Height(500));
+            Rect canvas = GUILayoutUtility.GetRect(canvasSize, canvasSize);
+            Texture2D backTex = Resources.Load("gridBack") as Texture2D;
+
+            //GUI.DrawTexture(canvas, backTex);
+            GUI.DrawTextureWithTexCoords(canvas, backTex, new Rect(0, 0, canvasSize / backgroundSize, canvasSize / backgroundSize) );
+            foreach (DialogueNode node in currentDialogue.GetAllNodes())
+            {             
+                DrawConnections(node);
+            }
+            foreach (DialogueNode node in currentDialogue.GetAllNodes())
+            {
+                DrawNode(node);             
+            }
+            GUILayout.EndScrollView();
+
+            if(creatingNode!=null)
+            {
+                
+                currentDialogue.CreateChildNode(creatingNode);
+                creatingNode = null;
+            }
+            if (deletingNode != null)
+            {
+                
+                currentDialogue.DeleteNode(deletingNode);
+                deletingNode = null;
+            }
+        }
+        else
+        {
+            EditorGUILayout.LabelField("No dialogue selected");
+        }
+        
+    }
+
+    private void DrawConnections(DialogueNode node)
+    {
+        foreach (DialogueNode childNode in currentDialogue.GetAllChildren(node))
+        {
+            Vector3 startPos = new Vector3(node.GUIRect.xMax,node.GUIRect.center.y,0);
+            Vector3 startMid = new Vector3(Mathf.Lerp(node.GUIRect.xMax,childNode.GUIRect.xMin,0.45f), node.GUIRect.center.y, 0);
+            Vector3 endPos = new Vector3(childNode.GUIRect.xMin, childNode.GUIRect.center.y, 0);
+            Vector3 endMid = new Vector3(Mathf.Lerp(node.GUIRect.xMax, childNode.GUIRect.xMin, 0.65f), childNode.GUIRect.center.y, 0);
+            Handles.DrawBezier(startPos, endPos, startMid, endMid, Color.white, null, 4f);
+        }
+    }
+
+    private void ProcessEvents()
+    {
+        switch (Event.current.type)
+        {            
+            case EventType.MouseDown:
+                //if ((!isDragging)&&(!isDraggingScreen))
+                //{
+                    GUIselectedNode = null;
+                    foreach (DialogueNode node in currentDialogue.GetAllNodes())
+                    {
+                        
+                        if (node.GUIRect.Contains(Event.current.mousePosition+ scrollPosition))
+                        {
+                            isDragging = true;                            
+                            GUIselectedNode = node;
+                        mouseOffset = node.GUIRect.position - Event.current.mousePosition; // + scrollPosition;
+                        }
+                    }
+                    if (GUIselectedNode == null)
+                    {
+                        if (Event.current.button == 1)
+                            Debug.Log("right click");
+                        else
+                        {
+                            isDraggingScreen = true;
+                            screenDragStart = Event.current.mousePosition + scrollPosition;
+                        }
+                    Selection.activeObject = currentDialogue;
+                    }
+                    else
+                    {
+                        Selection.activeObject = GUIselectedNode;
+                    }
+                //}
+                
+                break;
+            case EventType.MouseDrag:
+                if(isDragging)
+                {
+                    if (GUIselectedNode != null)
+                    {                        
+                        GUIselectedNode.SetPosition(Event.current.mousePosition+mouseOffset);                        
+                        GUI.changed = true;
+                    }
+                }
+                if(isDraggingScreen)
+                {
+                    scrollPosition = screenDragStart - Event.current.mousePosition;
+                    //drawAreaOffset = screenDragStart - Event.current.mousePosition;
+                    GUI.changed = true;
+                }
+                break;
+            case EventType.MouseUp:
+                if (Event.current.button == 0)
+                {
+                    if (isDragging)
+                        isDragging = false;
+                    if (isDraggingScreen)
+                        isDraggingScreen = false;
+                }
+                break;
+        }
+        
+    }
+    private void DrawNode(DialogueNode node)
+    {
+        GUILayout.BeginArea(node.GUIRect, dialogueNodeStyle);                
+        EditorGUILayout.LabelField("Text", EditorStyles.whiteLabel);
+        node.SetText(EditorGUILayout.TextField(node.dialogueText));
+        LinkMode linkMode = LinkMode.link;
+                        
+        GUILayout.BeginHorizontal();
+        if (node != currentDialogue.getRoot())
+        {
+            if (GUILayout.Button("X"))
+            {
+                deletingNode = node;
+            }
+        }
+        if(linkingNode != null)
+        {
+            if (node == linkingNode)
+                linkMode = LinkMode.cancel;
+            else
+            {
+                if(linkingNode.GetChildren().Contains(node.entryAddress))
+                {
+                    linkMode = LinkMode.unlink;
+                }
+                else
+                {
+                    linkMode = LinkMode.child;
+                }
+            }
+        }
+        else
+        {
+            linkMode = LinkMode.link;
+        }
+        switch (linkMode)
+        {
+            case LinkMode.link:
+                if (GUILayout.Button("Link"))
+                {
+                    linkingNode = node;
+                }
+            break;
+            case LinkMode.unlink:
+                if (GUILayout.Button("Unlink"))
+                {
+                   
+                    linkingNode.RemoveChild(node.entryAddress);
+                    
+                    linkingNode = null;
+                }
+            break;
+            case LinkMode.child:
+                if (GUILayout.Button("Child"))
+                {
+                    
+                    linkingNode.AddChild(node.entryAddress);
+                    linkingNode = null;
+                }
+                break;
+            case LinkMode.cancel:
+                if (GUILayout.Button("Cancel"))
+                {
+                    linkingNode = null;
+                }
+            break;
+        }
+        
+        if (GUILayout.Button("+"))
+        {
+            creatingNode = node;
+        }
+        GUILayout.EndHorizontal();
+        GUILayout.EndArea();
+    }
+
+    /*public void ShowCreateMenu()
+    {
+        GUILayout.BeginArea(node.GUIRect, dialogueNodeStyle);
+        EditorGUILayout.LabelField("Text", EditorStyles.whiteLabel);
+        node.SetText(EditorGUILayout.TextField(node.dialogueText));
+        LinkMode linkMode = LinkMode.link;
+
+        GUILayout.BeginHorizontal();
+        if (node != currentDialogue.getRoot())
+        {
+            if (GUILayout.Button("X"))
+            {
+                deletingNode = node;
+            }
+        }
+        if (linkingNode != null)
+        {
+            if (node == linkingNode)
+                linkMode = LinkMode.cancel;
+            else
+            {
+                if (linkingNode.GetChildren().Contains(node.entryAddress))
+                {
+                    linkMode = LinkMode.unlink;
+                }
+                else
+                {
+                    linkMode = LinkMode.child;
+                }
+            }
+        }
+        else
+        {
+            linkMode = LinkMode.link;
+        }
+        switch (linkMode)
+        {
+            case LinkMode.link:
+                if (GUILayout.Button("Link"))
+                {
+                    linkingNode = node;
+                }
+                break;
+            case LinkMode.unlink:
+                if (GUILayout.Button("Unlink"))
+                {
+
+                    linkingNode.RemoveChild(node.entryAddress);
+
+                    linkingNode = null;
+                }
+                break;
+            case LinkMode.child:
+                if (GUILayout.Button("Child"))
+                {
+
+                    linkingNode.AddChild(node.entryAddress);
+                    linkingNode = null;
+                }
+                break;
+            case LinkMode.cancel:
+                if (GUILayout.Button("Cancel"))
+                {
+                    linkingNode = null;
+                }
+                break;
+        }
+
+        if (GUILayout.Button("+"))
+        {
+            creatingNode = node;
+        }
+        GUILayout.EndHorizontal();
+        GUILayout.EndArea();
+    }*/
+}
