@@ -637,9 +637,7 @@ public class GAME1304PlayerController : MonoBehaviour
             }
             tokenDisplayText.text = tempText;
         }
-
-        //todo: find a more elegant way to handle this rather than every frame
-        //checkGrounded();
+        
 
         if (GameManager.isPaused)
         {
@@ -1242,7 +1240,8 @@ public class GAME1304PlayerController : MonoBehaviour
             if (fallDistance >= (killHeight - 1))
             {
                 //TODO: replace this with a more robust damage model based on height
-                takeDamage(health, signalTypes.scriptedDamage);
+                if(collision.gameObject.GetComponent<PaddedSurfaceBehavior>()==null)
+                    takeDamage(health, signalTypes.scriptedDamage);
             }
             isFalling = false;
             checkGrounded();

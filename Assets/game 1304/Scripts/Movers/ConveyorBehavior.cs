@@ -79,7 +79,7 @@ public class ConveyorBehavior : MonoBehaviour
          {
              Vector3 pos = rb.transform.position;
              
-             rb.position += transform.forward * actualSpeed * Time.fixedDeltaTime;
+             rb.position -= transform.forward * actualSpeed * Time.fixedDeltaTime;
              
              rb.MovePosition(pos);
          }

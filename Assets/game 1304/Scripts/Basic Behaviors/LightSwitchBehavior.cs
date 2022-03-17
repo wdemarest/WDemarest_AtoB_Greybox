@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum lightInteractionModes {doNothing, turnOn, turnOff, toggleOnOff };
 public class LightSwitchBehavior : InteractiveObject
 {
-    public List<GameObject> lights;    
+    public List<GameObject> lights;
+    public lightInteractionModes interactionMode = lightInteractionModes.toggleOnOff;
 
     public override void interact()
     {
@@ -20,7 +22,19 @@ public class LightSwitchBehavior : InteractiveObject
                 Light lb = l.GetComponent<Light>();
                 if (lb != null)
                 {
-                    lb.enabled = !lb.enabled;
+                    switch (interactionMode)
+                    {
+                        case lightInteractionModes.toggleOnOff:
+                            lb.enabled = !lb.enabled;
+                            break;
+                        case lightInteractionModes.turnOff:
+                            lb.enabled = false;
+                            break;
+                        case lightInteractionModes.turnOn:
+                            lb.enabled = true;
+                            break;
+                    }
+                    
                 }
             }
         }

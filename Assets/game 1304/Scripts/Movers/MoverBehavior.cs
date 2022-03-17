@@ -90,33 +90,34 @@ public class MoverBehavior : MonoBehaviour
 		nextState = moverState.MovingToB;
         _isActive = startOn;
         lerpValue = 0;
-
-        //Set the offset position for the mover
-        startTimeOffset = startTimeOffset % (pauseDurationAtA + pauseDurationAtB + (travelDurationAtoB + travelDurationBtoA));
-        if(startTimeOffset<=pauseDurationAtA)
-            waitTime = Time.time+pauseDurationAtA-startTimeOffset;
-
-        if((startTimeOffset>pauseDurationAtA)&&(startTimeOffset <= (pauseDurationAtA+ travelDurationAtoB)))
+        if (startTimeOffset > 0)
         {
-            waitTime = 0;
-            lerpValue = (startTimeOffset-pauseDurationAtA)/ travelDurationAtoB;
-            currentState = moverState.MovingToB;
-            nextState = moverState.Waiting;
-        }
-        if ((startTimeOffset > (pauseDurationAtA + travelDurationAtoB)) && (startTimeOffset <= (pauseDurationAtA+ travelDurationAtoB + pauseDurationAtB)))
-        {
-            waitTime = startTimeOffset - pauseDurationAtA + travelDurationAtoB;
-            currentState = moverState.Waiting; 
-            nextState = moverState.MovingToA;
-        }
-        if (startTimeOffset > (pauseDurationAtA + travelDurationAtoB + pauseDurationAtB)) 
-        {
-            waitTime = 0;
-            lerpValue = (startTimeOffset - (pauseDurationAtA+ travelDurationAtoB + pauseDurationAtB)) / travelDurationBtoA;
-            currentState = moverState.MovingToA;
-            nextState = moverState.Waiting;
-        }
+            //Set the offset position for the mover
+            startTimeOffset = startTimeOffset % (pauseDurationAtA + pauseDurationAtB + (travelDurationAtoB + travelDurationBtoA));
+            if (startTimeOffset <= pauseDurationAtA)
+                waitTime = Time.time + pauseDurationAtA - startTimeOffset;
 
+            if ((startTimeOffset > pauseDurationAtA) && (startTimeOffset <= (pauseDurationAtA + travelDurationAtoB)))
+            {
+                waitTime = 0;
+                lerpValue = (startTimeOffset - pauseDurationAtA) / travelDurationAtoB;
+                currentState = moverState.MovingToB;
+                nextState = moverState.Waiting;
+            }
+            if ((startTimeOffset > (pauseDurationAtA + travelDurationAtoB)) && (startTimeOffset <= (pauseDurationAtA + travelDurationAtoB + pauseDurationAtB)))
+            {
+                waitTime = startTimeOffset - pauseDurationAtA + travelDurationAtoB;
+                currentState = moverState.Waiting;
+                nextState = moverState.MovingToA;
+            }
+            if (startTimeOffset > (pauseDurationAtA + travelDurationAtoB + pauseDurationAtB))
+            {
+                waitTime = 0;
+                lerpValue = (startTimeOffset - (pauseDurationAtA + travelDurationAtoB + pauseDurationAtB)) / travelDurationBtoA;
+                currentState = moverState.MovingToA;
+                nextState = moverState.Waiting;
+            }
+        }
         //set up events
         //EventRegistry.Init();
 		if(pauseEvent != "")
@@ -266,7 +267,7 @@ public class MoverBehavior : MonoBehaviour
 			{
                 if (travelDurationAtoB > 0)
                 {
-                    lerpValue += Time.deltaTime / travelDurationAtoB;
+                    lerpValue += Time.fixedDeltaTime / travelDurationAtoB;
                     distanceToDestination = Vector3.Distance(transform.position, positionB);
                 }
                 else
@@ -275,7 +276,7 @@ public class MoverBehavior : MonoBehaviour
                         //rb.MovePosition(positionB);
                     distanceToDestination = 0f;
                 }
-				if(distanceToDestination <= Time.deltaTime / travelDurationAtoB)
+				if(distanceToDestination <= Time.fixedDeltaTime / travelDurationAtoB)
 				{
                     if ((_audioSource != null) && (StopSound != null))
                     {
@@ -320,7 +321,7 @@ public class MoverBehavior : MonoBehaviour
 				if(_isActive)
 				{
 
-					_currentWaitTime += Time.deltaTime;
+					_currentWaitTime += Time.fixedDeltaTime;
 					if(_currentWaitTime >= waitTime)
 					{
 						currentState = nextState;
@@ -359,7 +360,7 @@ public class MoverBehavior : MonoBehaviour
 			{
                 if (travelDurationBtoA > 0)
                 {
-                    lerpValue += Time.deltaTime / travelDurationBtoA;
+                    lerpValue += Time.fixedDeltaTime / travelDurationBtoA;
                     distanceToDestination = Vector3.Distance(transform.position, positionA);
                 }
                 else
@@ -368,7 +369,7 @@ public class MoverBehavior : MonoBehaviour
                     //    rb.MovePosition(positionA);
                     distanceToDestination = 0f;
                 }                    
-				if(distanceToDestination <= Time.deltaTime / travelDurationBtoA)
+				if(distanceToDestination <= Time.fixedDeltaTime / travelDurationBtoA)
 				{
                     if ((_audioSource != null) && (StopSound != null))
                     {
